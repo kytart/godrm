@@ -15,4 +15,4 @@ Another possibility is using Go to make GPGPU (like opencl).
 
 ## Examples
 
-See the [examples](https://github.com/NeowayLabs/drm/tree/master/_examples) directory.
+See the [examples](https://github.com/kytart/godrm/tree/master/examples) directory.

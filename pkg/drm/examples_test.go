@@ -1,9 +1,7 @@
-package drm_test
+package drm
 
 import (
 	"fmt"
-
-	"github.com/NeowayLabs/drm"
 )
 
 func ExampleHasDumbBuffer() {
@@ -12,13 +10,13 @@ func ExampleHasDumbBuffer() {
 	// you can create simple memory-mapped buffers without any
 	// driver-dependent code.
 
-	file, err := drm.OpenCard(0)
+	file, err := OpenCard(0)
 	if err != nil {
 		fmt.Printf("error: %s", err.Error())
 		return
 	}
 	defer file.Close()
-	if !drm.HasDumbBuffer(file) {
+	if !HasDumbBuffer(file) {
 		fmt.Printf("drm device does not support dumb buffers")
 		return
 	}
@@ -29,7 +27,7 @@ func ExampleHasDumbBuffer() {
 
 func ExampleListDevices() {
 	// Shows how to enumerate the available dri devices
-	for _, dev := range drm.ListDevices() {
+	for _, dev := range ListDevices() {
 		fmt.Printf("Driver name: %s\n", dev.Name)
 	}
 

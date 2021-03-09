@@ -1,18 +1,18 @@
-// Port of modeset.c example to Go
-// Source: https://github.com/dvdhrm/docs/blob/master/drm-howto/modeset.c
 package main
 
 import (
 	"fmt"
-	"math/rand"
+	"image"
 	"os"
 	"time"
 	"unsafe"
 
 	"launchpad.net/gommap"
 
-	"github.com/NeowayLabs/drm"
-	"github.com/NeowayLabs/drm/mode"
+	_ "image/jpeg"
+
+	"github.com/kytart/godrm/pkg/drm"
+	"github.com/kytart/godrm/pkg/mode"
 )
 
 type (
@@ -71,51 +71,35 @@ func createFramebuffer(file *os.File, dev *mode.Modeset) (framebuffer, error) {
 }
 
 func draw(msets []msetData) {
-	var (
-		r, g, b       uint8
-		rUp, gUp, bUp = true, true, true
-		off           uint32
-	)
+	var off uint32
 
-	rand.Seed(int64(time.Now().Unix()))
-	r = uint8(rand.Intn(256))
-	g = uint8(rand.Intn(256))
-	b = uint8(rand.Intn(256))
+	reader, err := os.Open("glenda.jpg")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		return
+	}
+	defer reader.Close()
 
-	for i := 0; i < 50; i++ {
-		r = nextColor(&rUp, r, 20)
-		g = nextColor(&gUp, g, 10)
-		b = nextColor(&bUp, b, 5)
+	m, _, err := image.Decode(reader)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		return
+	}
+	bounds := m.Bounds()
 
-		for j := 0; j < len(msets); j++ {
-			mset := msets[j]
-			for k := uint16(0); k < mset.mode.Height; k++ {
-				for s := uint16(0); s < mset.mode.Width; s++ {
-					off = (mset.fb.stride * uint32(k)) + (uint32(s) * 4)
-					val := uint32((uint32(r) << 16) | (uint32(g) << 8) | uint32(b))
-					*(*uint32)(unsafe.Pointer(&mset.fb.data[off])) = val
-				}
+	for j := 0; j < len(msets); j++ {
+		mset := msets[j]
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				r, g, b, _ := m.At(x, y).RGBA()
+				off = (mset.fb.stride * uint32(y)) + (uint32(x) * 4)
+				val := uint32((uint32(r) << 16) | (uint32(g) << 8) | uint32(b))
+				*(*uint32)(unsafe.Pointer(&mset.fb.data[off])) = val
 			}
 		}
-
-		time.Sleep(150 * time.Millisecond)
 	}
-}
 
-func nextColor(up *bool, cur uint8, mod int) uint8 {
-	var next uint8
-
-	if *up {
-		next = cur + 1
-	} else {
-		next = cur - 1
-	}
-	next = next * uint8(rand.Intn(mod))
-	if (*up && next < cur) || (!*up && next > cur) {
-		*up = !*up
-		next = cur
-	}
-	return next
+	time.Sleep(10 * time.Second)
 }
 
 func destroyFramebuffer(modeset *mode.SimpleModeset, mset msetData, file *os.File) error {

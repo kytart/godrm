@@ -1,25 +1,23 @@
-package drm_test
+package drm
 
 import (
 	"fmt"
 	"os"
 	"testing"
-
-	"github.com/NeowayLabs/drm"
 )
 
 type (
 	cardDetail struct {
-		version      drm.Version
+		version      Version
 		capabilities map[uint64]uint64
 	}
 )
 
 var (
-	card, errCard = drm.Available()
+	card, errCard = Available()
 	cards         = map[string]cardDetail{
 		"i915": cardDetail{
-			version: drm.Version{
+			version: Version{
 				Major: 1,
 				Minor: 6,
 				Patch: 1,
@@ -28,17 +26,17 @@ var (
 				Date:  "20160425",
 			},
 			capabilities: map[uint64]uint64{
-				drm.CapDumbBuffer:         1,
-				drm.CapVBlankHighCRTC:     1,
-				drm.CapDumbPreferredDepth: 24,
-				drm.CapDumbPreferShadow:   1,
-				drm.CapPrime:              3,
-				drm.CapTimestampMonotonic: 1,
-				drm.CapAsyncPageFlip:      0,
-				drm.CapCursorWidth:        256,
-				drm.CapCursorHeight:       256,
+				CapDumbBuffer:         1,
+				CapVBlankHighCRTC:     1,
+				CapDumbPreferredDepth: 24,
+				CapDumbPreferShadow:   1,
+				CapPrime:              3,
+				CapTimestampMonotonic: 1,
+				CapAsyncPageFlip:      0,
+				CapCursorWidth:        256,
+				CapCursorHeight:       256,
 
-				drm.CapAddFB2Modifiers: 1,
+				CapAddFB2Modifiers: 1,
 			},
 		},
 	}

@@ -12,8 +12,8 @@ import (
 
 	"launchpad.net/gommap"
 
-	"github.com/NeowayLabs/drm"
-	"github.com/NeowayLabs/drm/mode"
+	"github.com/kytart/godrm/pkg/drm"
+	"github.com/kytart/godrm/pkg/mode"
 )
 
 type (

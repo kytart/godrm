@@ -3,7 +3,7 @@ package drm
 import (
 	"unsafe"
 
-	"github.com/NeowayLabs/drm/ioctl"
+	"github.com/kytart/godrm/pkg/ioctl"
 )
 
 const IOCTLBase = 'd'

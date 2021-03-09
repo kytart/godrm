@@ -1,14 +1,13 @@
-package drm_test
+package drm
 
 import (
 	"testing"
 
-	"github.com/NeowayLabs/drm"
-	"github.com/NeowayLabs/drm/mode"
+	"github.com/kytart/godrm/pkg/mode"
 )
 
 func TestDRIOpen(t *testing.T) {
-	file, err := drm.OpenCard(0)
+	file, err := OpenCard(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -16,7 +15,7 @@ func TestDRIOpen(t *testing.T) {
 }
 
 func TestAvailableCard(t *testing.T) {
-	v, err := drm.Available()
+	v, err := Available()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +34,7 @@ func TestAvailableCard(t *testing.T) {
 }
 
 func TestModeRes(t *testing.T) {
-	file, err := drm.OpenCard(0)
+	file, err := OpenCard(0)
 	if err != nil {
 		t.Fatal(err)
 	}
