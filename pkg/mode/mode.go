@@ -3,6 +3,7 @@ package mode
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"unsafe"
 
 	"github.com/kytart/godrm/pkg/drm"
@@ -425,41 +426,45 @@ func PageFlip(file *os.File, crtcid uint32, bufferid uint32, flags uint32, userD
 
 type EventListeners struct {
 	OnFlipComplete func(
-		file *os.File, 
-		sequence uint32, 
-		tvSec uint32, 
-		tvUsec uint32, 
+		file *os.File,
+		sequence uint32,
+		tvSec uint32,
+		tvUsec uint32,
 		userData unsafe.Pointer,
 	)
 }
 
 func HandleEvents(file *os.File, listeners EventListeners) error {
 	buffer := make([]byte, 1024)
-	len, err := file.Read(buffer)
+	length, err := file.Read(buffer)
 	if err != nil {
 		return err
 	}
 
-	if len == 0 {
+	partialEventSize := int(unsafe.Sizeof(sysEvent{}))
+
+	if length == 0 {
 		return nil
-	} else if len < int(unsafe.Sizeof(sysEvent{})) {
+	} else if length < partialEventSize {
 		return fmt.Errorf("Unexpected value")
 	}
 
-	bufferPtr := (unsafe.Pointer(&buffer))
+	bufferPtr := buffer
 	bytesRead := 0
-	for bytesRead < len {
-		partialEvent := (*sysEvent)(bufferPtr)
+
+	for bytesRead < length {
+		bufferSliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&bufferPtr))
+		partialEvent := (*sysEvent)(unsafe.Pointer(bufferSliceHeader.Data))
 		switch partialEvent.xtype {
 		case EventFlipComplete:
 			if listeners.OnFlipComplete == nil {
 				break
 			}
-			event := (*sysEventVblank)(bufferPtr)
+			event := (*sysEventVblank)(unsafe.Pointer(bufferSliceHeader.Data))
 			listeners.OnFlipComplete(file, event.sequence, event.tvSec, event.tvUsec, unsafe.Pointer(uintptr(event.userData)))
 		}
 		bytesRead += int(partialEvent.length)
-		bufferPtr = unsafe.Pointer(uintptr(bufferPtr) + uintptr(partialEvent.length))
+		bufferPtr = buffer[bytesRead:]
 	}
 
 	return nil
