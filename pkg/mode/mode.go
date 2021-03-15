@@ -1,6 +1,7 @@
 package mode
 
 import (
+	"fmt"
 	"os"
 	"unsafe"
 
@@ -17,6 +18,11 @@ const (
 	Connected         = 1
 	Disconnected      = 2
 	UnknownConnection = 3
+
+	PageFlipEvent = 1
+
+	EventVblank       = 1
+	EventFlipComplete = 2
 )
 
 type (
@@ -162,8 +168,31 @@ type (
 		mode      Info
 	}
 
+	sysCrtcPageFlip struct {
+		crtcID   uint32
+		fbID     uint32
+		flags    uint32
+		reserved uint32
+		userData uint64
+	}
+
 	sysDestroyDumb struct {
 		handle uint32
+	}
+
+	sysEvent struct {
+		xtype  uint32
+		length uint32
+	}
+
+	sysEventVblank struct {
+		xtype    uint32
+		length   uint32
+		userData uint64
+		tvSec    uint32
+		tvUsec   uint32
+		sequence uint32
+		reserved uint32
 	}
 
 	Crtc struct {
@@ -214,6 +243,10 @@ var (
 	// DRM_IOWR(0xAF, unsigned int)
 	IOCTLModeRmFB = ioctl.NewCode(ioctl.Read|ioctl.Write,
 		uint16(unsafe.Sizeof(uint32(0))), drm.IOCTLBase, 0xAF)
+
+	// DRM_IOWR(0xB0, struct drm_mode_crtc_page_flip)
+	IOCTLModePageFlip = ioctl.NewCode(ioctl.Read|ioctl.Write,
+		uint16(unsafe.Sizeof(sysCrtcPageFlip{})), drm.IOCTLBase, 0xB0)
 
 	// DRM_IOWR(0xB2, struct drm_mode_create_dumb)
 	IOCTLModeCreateDumb = ioctl.NewCode(ioctl.Read|ioctl.Write,
@@ -378,6 +411,58 @@ func CreateFB(file *os.File, width, height uint16, bpp uint32) (*FB, error) {
 		Pitch:  fb.pitch,
 		Size:   fb.size,
 	}, nil
+}
+
+func PageFlip(file *os.File, crtcid uint32, bufferid uint32, flags uint32, userData unsafe.Pointer) error {
+	f := &sysCrtcPageFlip{}
+	f.crtcID = crtcid
+	f.fbID = bufferid
+	f.flags = flags
+	f.userData = uint64(uintptr(userData))
+	return ioctl.Do(uintptr(file.Fd()), uintptr(IOCTLModePageFlip),
+		uintptr(unsafe.Pointer(f)))
+}
+
+type EventListeners struct {
+	OnFlipComplete func(
+		file *os.File, 
+		sequence uint32, 
+		tvSec uint32, 
+		tvUsec uint32, 
+		userData unsafe.Pointer,
+	)
+}
+
+func HandleEvents(file *os.File, listeners EventListeners) error {
+	buffer := make([]byte, 1024)
+	len, err := file.Read(buffer)
+	if err != nil {
+		return err
+	}
+
+	if len == 0 {
+		return nil
+	} else if len < int(unsafe.Sizeof(sysEvent{})) {
+		return fmt.Errorf("Unexpected value")
+	}
+
+	bufferPtr := (unsafe.Pointer(&buffer))
+	bytesRead := 0
+	for bytesRead < len {
+		partialEvent := (*sysEvent)(bufferPtr)
+		switch partialEvent.xtype {
+		case EventFlipComplete:
+			if listeners.OnFlipComplete == nil {
+				break
+			}
+			event := (*sysEventVblank)(bufferPtr)
+			listeners.OnFlipComplete(file, event.sequence, event.tvSec, event.tvUsec, unsafe.Pointer(uintptr(event.userData)))
+		}
+		bytesRead += int(partialEvent.length)
+		bufferPtr = unsafe.Pointer(uintptr(bufferPtr) + uintptr(partialEvent.length))
+	}
+
+	return nil
 }
 
 func AddFB(file *os.File, width, height uint16,
